@@ -12,8 +12,8 @@ Required Python modules:
 
 Example run script:
 
-
+```
   python3 audio_visualizer
-
+```
 
 Note this has NOT been tested with other versions of python
