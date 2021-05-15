@@ -3,11 +3,11 @@ Audio Spectrum Visualizer
 
 
 Required Python modules:
-  pyqt5
-  pyaudio
-  numpy
-  scipy
-  struct
+  * pyqt5
+  * pyaudio
+  * numpy
+  * scipy
+  * struct
 
 
 Example run script:
