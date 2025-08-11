@@ -23,6 +23,7 @@ import numpy as np
 import sounddevice as sd
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtCore
+from PyQt5.QtGui import QBrush
 from scipy.fft import fft
 from scipy.signal import butter, sosfilt
 
@@ -105,10 +106,17 @@ class AudioVisualizer(object):
         ## [F]:Create Frequency Bins
         self.f = np.linspace(20, self.NYQ, self.N)
         self.bins = np.linspace(1, self.CN, self.CN)
-        # self.spectrum = pg.BarGraphItem(x=self.bins, height=np.random.rand(len(self.f)), width=0.2)
-        self.spectrum = pg.PlotDataItem(x=self.bins, y=np.random.rand(len(self.bins)), pen="r")
+
+        cmap = pg.colormap.get("CET-L4")  # or any other colormap
+        colors = np.array(cmap.getColors(self.CN)) * 255  # shape (N,4), float->uint8
+        colors = colors.astype(np.uint8)
+        self.spectrum = pg.BarGraphItem(
+            x=self.bins,
+            height=np.random.rand(self.CN),
+            width=0.6,
+            brush="c",  # or any single color, e.g. 'r', 'g', (0,255,255), etc.
+        )
         self.win.addItem(self.spectrum)
-        # self.win.setYRange(0, 1)
 
     # [D.1]: Sounddevice callback to store latest audio chunk
     def audio_callback(self, indata, frames, time, status):
@@ -125,17 +133,11 @@ class AudioVisualizer(object):
     ## [H]:Set BarGraphItem with current data
     def set_plotdata(self, name, data_y):
         if name in self.traces:
-            if np.max(data_y) >= 0.4:
-                self.color = (
-                    np.random.choice(self.colors),
-                    np.random.choice(self.colors),
-                    np.random.choice(self.colors),
-                )
-            self.spectrum.setData(x=self.bins, y=data_y)
-            # self.spectrum.setOpts(height=data_y, brush=self.color)
+            # Use the precomputed color gradient for the bars
+            self.spectrum.setOpts(height=data_y)
         else:
             if name == "spectrum":
-                self.traces[name] = self.spectrum.data
+                self.traces[name] = True
 
     ## [I]:Filter Data
     def band_pass_filter(self, signal_data):
