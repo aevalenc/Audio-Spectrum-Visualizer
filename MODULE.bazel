@@ -6,6 +6,7 @@ module(name = "audio-visualizer", version = "0.0.1")
 
 # Python rules
 bazel_dep(name = "rules_python", version = "1.5.2")
+bazel_dep(name = "aspect_rules_py", version = "1.6.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(

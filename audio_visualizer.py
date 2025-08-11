@@ -20,10 +20,10 @@
 
 import sys
 import numpy as np
-import pyaudio
+import sounddevice as sd
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui, QtCore
-from scipy.fftpack import fft
+from pyqtgraph.Qt import QtWidgets, QtCore
+from scipy.fft import fft
 from scipy.signal import butter, sosfilt
 
 
@@ -40,14 +40,14 @@ class AudioVisualizer(object):
 
         ## [B]:Setup pyqtgraph window
         pg.setConfigOptions(antialias=True)
-        self.app = QtGui.QApplication(sys.argv)
+        self.app = QtWidgets.QApplication(sys.argv)
         self.win = pg.plot(title="Audio Visualizer")
         self.win.resize(1000, 400)
         self.win.setTitle("See the Beats")
 
         ## [C]:Parameters
         self.CHUNK = 1024 * 2  # Samples per frame
-        self.FORMAT = pyaudio.paInt16  # Audio format
+        self.FORMAT = "int16"  # Audio format for sounddevice
         self.CHANNELS = 1  # Single channel for microphone
         self.RATE = 44100  # Sample rate [samples/s]
         self.NYQ = self.RATE / 2  # Nyquist frequency
@@ -91,31 +91,37 @@ class AudioVisualizer(object):
         self.colors = np.linspace(0, 255, 16)  # Color range
         self.color = (0, 255, 255)  # Initial color cyan
 
-        ## [D]:Create pyaudio instance
-        self.p = pyaudio.PyAudio()
-
-        ## [E]:Stream Object
-        self.stream = self.p.open(
-            format=self.FORMAT,
+        ## [D]:Sounddevice stream buffer
+        self.latest_audio = np.zeros(self.CHUNK, dtype=np.int16)
+        self.stream = sd.InputStream(
+            samplerate=self.RATE,
             channels=self.CHANNELS,
-            rate=self.RATE,
-            input=True,
-            output=True,
-            frames_per_buffer=self.CHUNK,
+            dtype=self.FORMAT,
+            blocksize=self.CHUNK,
+            callback=self.audio_callback,
         )
+        self.stream.start()
 
         ## [F]:Create Frequency Bins
         self.f = np.linspace(20, self.NYQ, self.N)
         self.bins = np.linspace(1, self.CN, self.CN)
-        self.spectrum = pg.BarGraphItem(x=self.bins, height=np.random.rand(len(self.f)), width=0.2)
+        # self.spectrum = pg.BarGraphItem(x=self.bins, height=np.random.rand(len(self.f)), width=0.2)
+        self.spectrum = pg.PlotDataItem(x=self.bins, y=np.random.rand(len(self.bins)), pen="r")
         self.win.addItem(self.spectrum)
+
+    # [D.1]: Sounddevice callback to store latest audio chunk
+    def audio_callback(self, indata, frames, time, status):
+        if status:
+            print(status)
+        # Flatten indata to 1D if needed
+        self.latest_audio = indata[:, 0].copy()
 
     # end __init__
 
     ## [G]:Make sure AudioVisualizer is ready to go
     def start(self):
         if (sys.flags.interactive != 1) or not hasattr(QtCore, "PYQT_VERSION"):
-            QtGui.QApplication.instance().exec_()
+            QtWidgets.QApplication.instance().exec_()
         # end if
 
     # end start
@@ -129,11 +135,11 @@ class AudioVisualizer(object):
                     np.random.choice(self.colors),
                     np.random.choice(self.colors),
                 )
-
-            self.spectrum.setOpts(height=data_y, brush=self.color)
+            self.spectrum.setData(y=data_y)
+            # self.spectrum.setOpts(height=data_y, brush=self.color)
         else:
             if name == "spectrum":
-                self.traces[name] = self.spectrum.drawPicture()
+                self.traces[name] = self.spectrum.data
             # end if
 
         # end if
@@ -192,12 +198,8 @@ class AudioVisualizer(object):
 
     # [L]:Update Graph
     def update(self):
-        # Binary data
-        data = self.stream.read(self.CHUNK)
-
-        # Convert data to integers, make np array, then offset by 127
-        # (255 / 2 Remember bias 0)
-        data_int = np.frombuffer(data, dtype=np.int16)
+        # Use latest audio chunk from sounddevice
+        data_int = self.latest_audio.astype(np.float32)
 
         # Perform the Fast Fourier Transform and Obtain Spectrum
         filtered_data = self.band_pass_filter(data_int)

@@ -1,4 +1,5 @@
 numpy
 pyqtgraph
-pyaudio
+sounddevice
 scipy
+PyQt5
