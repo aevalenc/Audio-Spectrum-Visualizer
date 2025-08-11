@@ -12,7 +12,7 @@
 # License
 #
 # Author of current file: Alejandro Valencia
-# Last Update: May 3, 2021
+# Last Update: August 11, 2025
 
 # /**********************************************************************
 # *   Modules                                                           *
@@ -108,6 +108,7 @@ class AudioVisualizer(object):
         # self.spectrum = pg.BarGraphItem(x=self.bins, height=np.random.rand(len(self.f)), width=0.2)
         self.spectrum = pg.PlotDataItem(x=self.bins, y=np.random.rand(len(self.bins)), pen="r")
         self.win.addItem(self.spectrum)
+        # self.win.setYRange(0, 1)
 
     # [D.1]: Sounddevice callback to store latest audio chunk
     def audio_callback(self, indata, frames, time, status):
@@ -116,15 +117,10 @@ class AudioVisualizer(object):
         # Flatten indata to 1D if needed
         self.latest_audio = indata[:, 0].copy()
 
-    # end __init__
-
     ## [G]:Make sure AudioVisualizer is ready to go
     def start(self):
         if (sys.flags.interactive != 1) or not hasattr(QtCore, "PYQT_VERSION"):
             QtWidgets.QApplication.instance().exec_()
-        # end if
-
-    # end start
 
     ## [H]:Set BarGraphItem with current data
     def set_plotdata(self, name, data_y):
@@ -135,16 +131,11 @@ class AudioVisualizer(object):
                     np.random.choice(self.colors),
                     np.random.choice(self.colors),
                 )
-            self.spectrum.setData(y=data_y)
+            self.spectrum.setData(x=self.bins, y=data_y)
             # self.spectrum.setOpts(height=data_y, brush=self.color)
         else:
             if name == "spectrum":
                 self.traces[name] = self.spectrum.data
-            # end if
-
-        # end if
-
-    # end set_plotdata
 
     ## [I]:Filter Data
     def band_pass_filter(self, signal_data):
@@ -153,8 +144,6 @@ class AudioVisualizer(object):
         filtered_data = sosfilt(sos, signal_data)
 
         return filtered_data
-
-    # end band_pass_filter
 
     # [J]:RMS Function
     def rms(self, signal_data):
@@ -166,7 +155,6 @@ class AudioVisualizer(object):
         sum = 0
         for i in range(0, N):
             sum += signal_data[i] ** 2
-        # end
 
         rms_data = np.sqrt(sum / N)
 
@@ -190,8 +178,6 @@ class AudioVisualizer(object):
             band_data = signal_data[indxlb : indxub + 1]
             rms_data[i] = self.rms(band_data)
 
-        # end i
-
         return rms_data
 
     # end octave_band
@@ -207,6 +193,9 @@ class AudioVisualizer(object):
         sp_data = np.abs(sp_data[1 : int(self.CHUNK / 2)]) * 2 / (128 * self.CHUNK)
         sp_data = np.array(sp_data)
         sp_data = self.octave_band(sp_data)
+        max_val = np.max(sp_data)
+        if max_val != 0:
+            sp_data = sp_data / max_val
         self.set_plotdata(name="spectrum", data_y=sp_data)
 
     # end update
